@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Chatbot</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+
+    <!-- KaTeX for LaTeX rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+
+    <!-- Agent CSS -->
+    <link rel="stylesheet" href="css/agent.css">
+
+    <style>
+        :root {
+            --primary-color: #10a37f;
+            --secondary-color: #f7f7f8;
+            --text-color: #343541;
+            --light-text: #8e8ea0;
+            --border-color: #e5e5e5;
+            --sidebar-bg: #202123;
+            --sidebar-hover: #2a2b32;
+            --message-user-bg: #343541;
+            --message-user-text: #ffffff;
+            --message-assistant-bg: #f7f7f8;
+            --message-assistant-text: #343541;
+            --hover-color: #f1f1f1;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --code-bg: #282c34;
+            --code-text: #abb2bf;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Google Sans', Arial, sans-serif;
+            color: var(--text-color);
+            background-color: #fff;
+        }
+
+        .container-fluid {
+            height: 100%;
+        }
+
+        .row {
+            height: 100%;
+        }
+
+        /* Sidebar styles */
+        .sidebar {
+            background-color: var(--sidebar-bg);
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            color: white;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: white;
+        }
+
+        .new-chat-btn {
+            padding: 1rem;
+        }
+
+        .new-chat-btn .btn {
+            background-color: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+            width: 100%;
+            text-align: left;
+            padding: 0.75rem 1rem;
+        }
+
+        .new-chat-btn .btn:hover {
+            background-color: var(--sidebar-hover);
+        }
+
+        .chat-history {
+            flex-grow: 1;
+            padding: 0 1rem;
+            overflow-y: auto;
+        }
+
+        .chat-history h6 {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin: 1rem 0 0.5rem;
+            padding-left: 0.5rem;
+        }
+
+        .chat-history-list {
+            margin: 0;
+            padding: 0;
+        }
+
+        .chat-history-item {
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.8);
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .chat-history-item:hover {
+            background-color: var(--sidebar-hover);
+        }
+
+        .chat-history-item.active {
+            background-color: var(--sidebar-hover);
+        }
+
+        .sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+        }
+
+        /* Main content styles */
+        .main-content {
+            padding: 0;
+            height: 100%;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .chat-header h4 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 500;
+        }
+
+        /* Chat messages container */
+        .chat-messages {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* Message styles */
+        .message {
+            display: flex;
+            padding: 1.5rem 1rem;
+            animation: fadeIn 0.3s ease;
+            border-bottom: 1px solid var(--border-color);
+            width: 100%;
+        }
+
+        .user-message {
+            background-color: var(--message-user-bg);
+        }
+
+        .assistant-message {
+            background-color: var(--message-assistant-bg);
+        }
+
+        .message-content {
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 0 1rem;
+        }
+
+        .user-message .message-content {
+            color: var(--message-user-text);
+        }
+
+        .assistant-message .message-content {
+            color: var(--message-assistant-text);
+        }
+
+        .message-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .user-message .message-avatar {
+            background-color: #5436DA;
+            color: white;
+        }
+
+        .assistant-message .message-avatar {
+            background-color: #10a37f;
+            color: white;
+        }
+
+        .message-bubble {
+            flex-grow: 1;
+        }
+
+        .message-content p {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Code blocks */
+        .message-content pre {
+            background-color: var(--code-bg);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 0.75rem 0;
+            position: relative;
+        }
+
+        .message-content code {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.875rem;
+            color: var(--code-text);
+        }
+
+        .message-content p code {
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            color: inherit;
+        }
+
+        .message-content pre::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 0 0.5rem 0 0.5rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .message-content pre.language-python::before {
+            content: 'Python';
+        }
+
+        .message-content pre.language-javascript::before {
+            content: 'JavaScript';
+        }
+
+        .message-content pre.language-html::before {
+            content: 'HTML';
+        }
+
+        .message-content pre.language-css::before {
+            content: 'CSS';
+        }
+
+        .message-content pre.language-json::before {
+            content: 'JSON';
+        }
+
+        .copy-code-button {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .copy-code-button:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Chat input area */
+        .chat-input-container {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            background-color: white;
+            position: relative;
+        }
+
+        #chat-form {
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+
+        .input-group {
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            background-color: white;
+            position: relative;
+        }
+
+        #user-input {
+            border: none;
+            padding: 1rem 1rem;
+            font-size: 1rem;
+            resize: none;
+            min-height: 56px;
+            max-height: 200px;
+            line-height: 1.5;
+        }
+
+        #user-input:focus {
+            box-shadow: none;
+            outline: none;
+        }
+
+        .input-group .btn {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            transition: opacity 0.2s;
+        }
+
+        .input-group .btn:hover {
+            opacity: 0.9;
+        }
+
+        .input-group .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Input tools */
+        .input-tools {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+        }
+
+        .tool-btn-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .tool-btn {
+            background: none;
+            border: none;
+            color: var(--light-text);
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s, color 0.2s;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tool-btn:hover {
+            background-color: var(--hover-color);
+            color: var(--primary-color);
+        }
+
+        .input-info {
+            font-size: 0.75rem;
+            color: var(--light-text);
+            display: flex;
+            align-items: center;
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background-color: transparent;
+            border-radius: 0.5rem;
+            width: fit-content;
+            margin: 0.5rem 0;
+        }
+
+        .typing-indicator span {
+            height: 0.5rem;
+            width: 0.5rem;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 0.15rem;
+            opacity: 0.7;
+        }
+
+        .typing-indicator span:nth-child(1) {
+            animation: typing 1s infinite 0s;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation: typing 1s infinite 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation: typing 1s infinite 0.4s;
+        }
+
+        @keyframes typing {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-0.5rem); }
+            100% { transform: translateY(0); }
+        }
+
+        /* Tool connection animation */
+        .tool-connecting {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            background-color: rgba(16, 163, 127, 0.05);
+            border: 1px solid rgba(16, 163, 127, 0.2);
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+            color: var(--primary-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tool-connection-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            border: 2px solid rgba(16, 163, 127, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .tool-connecting::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+            animation: loading-bar 2s infinite;
+        }
+
+        @keyframes loading-bar {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Tool-specific styles */
+        .gmail-tool .tool-connection-spinner {
+            border-color: rgba(234, 67, 53, 0.3);
+            border-top-color: #EA4335;
+        }
+
+        .gmail-tool {
+            color: #EA4335;
+            border-color: rgba(234, 67, 53, 0.2);
+        }
+
+        .gmail-tool::after {
+            background: linear-gradient(90deg, transparent, #EA4335, transparent);
+        }
+
+        .google-drive-tool .tool-connection-spinner {
+            border-color: rgba(52, 168, 83, 0.3);
+            border-top-color: #34A853;
+        }
+
+        .google-drive-tool {
+            color: #34A853;
+            border-color: rgba(52, 168, 83, 0.2);
+        }
+
+        .google-drive-tool::after {
+            background: linear-gradient(90deg, transparent, #34A853, transparent);
+        }
+
+        .zoom-tool .tool-connection-spinner {
+            border-color: rgba(47, 85, 212, 0.3);
+            border-top-color: #2F55D4;
+        }
+
+        .zoom-tool {
+            color: #2F55D4;
+            border-color: rgba(47, 85, 212, 0.2);
+        }
+
+        .zoom-tool::after {
+            background: linear-gradient(90deg, transparent, #2F55D4, transparent);
+        }
+
+        /* File upload styles */
+        .file-upload-container {
+            display: none;
+            padding: 1.5rem;
+            background-color: white;
+            border-radius: 12px;
+            margin: 1rem auto;
+            max-width: 600px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        .file-upload-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .file-upload-header h4 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--text-color);
+            font-weight: 600;
+        }
+
+        .file-upload-close {
+            background: none;
+            border: none;
+            color: var(--light-text);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            transition: background-color 0.2s;
+        }
+
+        .file-upload-close:hover {
+            background-color: var(--hover-color);
+        }
+
+        .file-drop-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 1rem;
+            background-color: var(--secondary-color);
+        }
+
+        .file-drop-area:hover, .file-drop-area.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(16, 163, 127, 0.05);
+        }
+
+        .file-drop-icon {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .file-drop-message {
+            font-size: 1rem;
+            color: var(--text-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .file-drop-hint {
+            font-size: 0.85rem;
+            color: var(--light-text);
+        }
+
+        .file-preview {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            background-color: var(--secondary-color);
+            position: relative;
+        }
+
+        .file-preview-icon {
+            font-size: 2rem;
+            color: var(--primary-color);
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(16, 163, 127, 0.1);
+            border-radius: 8px;
+        }
+
+        .file-preview img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .file-preview-info {
+            flex-grow: 1;
+        }
+
+        .file-preview-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: var(--text-color);
+            word-break: break-all;
+        }
+
+        .file-preview-size {
+            font-size: 0.85rem;
+            color: var(--light-text);
+        }
+
+        .file-preview-remove {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: none;
+            border: none;
+            color: var(--light-text);
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            transition: background-color 0.2s;
+        }
+
+        .file-preview-remove:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .file-upload-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .file-upload-cancel {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .file-upload-cancel:hover {
+            background-color: var(--hover-color);
+        }
+
+        .file-upload-submit {
+            padding: 0.5rem 1.25rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background-color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            color: white;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .file-upload-submit:hover {
+            opacity: 0.9;
+        }
+
+        /* Voice input styles */
+        .voice-input-active {
+            background-color: #ff4b4b !important;
+            color: white !important;
+        }
+
+        .voice-input-container {
+            display: none;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 12px;
+            margin: 1rem auto;
+            max-width: 600px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .voice-input-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .voice-input-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .voice-input-subtitle {
+            font-size: 0.9rem;
+            color: var(--light-text);
+        }
+
+        .voice-wave {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100px;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        .voice-wave-circle {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: rgba(16, 163, 127, 0.1);
+            animation: pulse-circle 2s infinite;
+        }
+
+        @keyframes pulse-circle {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+            100% { transform: scale(0.95); opacity: 0.7; }
+        }
+
+        .voice-wave-icon {
+            position: relative;
+            z-index: 2;
+            font-size: 2rem;
+            color: var(--primary-color);
+        }
+
+        .voice-wave-bars {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            height: 40px;
+            gap: 3px;
+        }
+
+        .voice-wave-bars span {
+            display: inline-block;
+            width: 4px;
+            height: 5px;
+            background-color: var(--primary-color);
+            border-radius: 2px;
+            animation: voice-wave 1.5s infinite ease-in-out;
+        }
+
+        .voice-wave-bars span:nth-child(1) { animation-delay: 0.2s; }
+        .voice-wave-bars span:nth-child(2) { animation-delay: 0.3s; }
+        .voice-wave-bars span:nth-child(3) { animation-delay: 0.4s; }
+        .voice-wave-bars span:nth-child(4) { animation-delay: 0.5s; }
+        .voice-wave-bars span:nth-child(5) { animation-delay: 0.6s; }
+        .voice-wave-bars span:nth-child(6) { animation-delay: 0.7s; }
+        .voice-wave-bars span:nth-child(7) { animation-delay: 0.8s; }
+        .voice-wave-bars span:nth-child(8) { animation-delay: 0.9s; }
+        .voice-wave-bars span:nth-child(9) { animation-delay: 1.0s; }
+
+        @keyframes voice-wave {
+            0%, 100% { height: 5px; }
+            50% { height: 25px; }
+        }
+
+        .voice-input-actions {
+            margin-top: 1.5rem;
+        }
+
+        .voice-cancel-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background-color: #f44336;
+            border: none;
+            color: white;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            box-shadow: 0 2px 5px rgba(244, 67, 54, 0.3);
+        }
+
+        .voice-cancel-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* LaTeX styles */
+        .math-display, .katex-block {
+            display: block;
+            overflow-x: auto;
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            background-color: #f9f9f9;
+            border-radius: 0.25rem;
+            text-align: center;
+        }
+
+        .math-inline, .katex-inline {
+            padding: 0 0.2rem;
+            display: inline-block;
+        }
+
+        /* Ensure KaTeX renders properly */
+        .katex {
+            font-size: 1.1em;
+            line-height: 1.2;
+            white-space: normal;
+        }
+
+        .katex-display {
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 0.5rem 0;
+        }
+
+        /* Thinking styles - ChatGPT-like */
+        .thinking-container {
+            margin: 15px 0;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: rgba(16, 163, 127, 0.05);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .thinking-header {
+            padding: 12px 16px;
+            background-color: rgba(16, 163, 127, 0.1);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+            color: var(--primary-color);
+            border-bottom: 1px solid rgba(16, 163, 127, 0.2);
+        }
+
+        .thinking-header i {
+            font-size: 1.1rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .thinking-content {
+            padding: 16px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            color: #374151;
+            background-color: rgba(255, 255, 255, 0.8);
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .thinking-toggle {
+            margin: 12px 16px;
+            font-size: 0.85rem;
+            background-color: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .thinking-toggle:hover {
+            background-color: rgba(16, 163, 127, 0.1);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 250px;
+                z-index: 1000;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                width: 100%;
+            }
+        }
+
+        /* Utility classes */
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover, .btn-primary:focus {
+            background-color: #0842a0;
+            border-color: #0842a0;
+        }
+
+        /* Model selector styles */
+        .model-selector {
+            min-width: 150px;
+        }
+
+        #model-selector {
+            font-size: 0.85rem;
+            border-color: var(--border-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar">
+                <div class="sidebar-header">
+                    <h3>Gemini Chatbot</h3>
+                </div>
+
+                <div class="new-chat-btn">
+                    <button id="new-chat-btn" class="btn btn-primary w-100">
+                        <i class="fas fa-plus"></i> New Chat
+                    </button>
+                </div>
+
+                <div class="chat-history">
+                    <h6>Chat History</h6>
+                    <ul id="chat-history-list" class="list-unstyled">
+                        <!-- Chat history will be populated here -->
+                    </ul>
+                </div>
+
+                <div class="sidebar-footer">
+                    <p>Powered by Gemini API</p>
+                </div>
+            </div>
+
+            <!-- Main Chat Area -->
+            <div class="col-md-9 col-lg-10 main-content">
+                <div class="chat-container">
+                    <div class="chat-header d-flex justify-content-between align-items-center">
+                        <h4>AI Assistant</h4>
+                        <div class="model-selector">
+                            <select id="model-selector" class="form-select form-select-sm">
+                                <option value="gemini-2.5-pro">Gemini 2.5 Pro (with thinking)</option>
+                                <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                                <option value="gemini-2.0-pro">Gemini 2.0 Pro</option>
+                                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                <option value="nvidia">NVIDIA AI (Mistral)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="chat-messages" class="chat-messages">
+                        <!-- Welcome message -->
+                        <div class="message assistant-message">
+                            <div class="message-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-bubble">
+                                <div class="message-content">
+                                    <p>Hello! I'm your AI assistant with agentic capabilities. I can generate and execute Python code for tasks like data visualization and analysis. I can also help with Gmail, Google Calendar, and other services through my MCP tools.</p>
+                                    <p>Try asking me to:</p>
+                                    <ul>
+                                        <li>Create a visualization</li>
+                                        <li>Analyze some data</li>
+                                        <li>Send an email</li>
+                                        <li>Schedule a meeting</li>
+                                        <li>Find files in Google Drive</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Messages will be added here -->
+                    </div>
+
+                    <!-- File upload container -->
+                    <div id="file-upload-container" class="file-upload-container">
+                        <div class="file-upload-header">
+                            <h4>Upload a file</h4>
+                            <button id="upload-close-btn" class="file-upload-close">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <div id="file-drop-area" class="file-drop-area">
+                            <div class="file-drop-icon">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                            </div>
+                            <div class="file-drop-message">
+                                Drag and drop files here, or click to select
+                            </div>
+                            <div class="file-drop-hint">
+                                Supports images, documents, and other files up to 25MB
+                            </div>
+                            <input class="d-none" type="file" id="file-input">
+                        </div>
+
+                        <div id="file-preview" class="file-preview" style="display: none;"></div>
+
+                        <div class="file-upload-actions">
+                            <button id="upload-cancel-btn" class="file-upload-cancel">Cancel</button>
+                            <button id="upload-submit-btn" class="file-upload-submit">Upload</button>
+                        </div>
+                    </div>
+
+                    <!-- Voice input container -->
+                    <div id="voice-input-container" class="voice-input-container">
+                        <div class="voice-input-header">
+                            <div class="voice-input-title">Voice input active</div>
+                            <div class="voice-input-subtitle">Speak clearly, I'm listening...</div>
+                        </div>
+
+                        <div class="voice-wave">
+                            <div class="voice-wave-circle"></div>
+                            <div class="voice-wave-icon">
+                                <i class="fas fa-microphone"></i>
+                            </div>
+                            <div class="voice-wave-bars">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+
+                        <div class="voice-input-actions">
+                            <button id="voice-cancel-btn" class="voice-cancel-btn">
+                                <i class="fas fa-times"></i> Stop recording
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-container">
+                        <form id="chat-form">
+                            <div class="input-group">
+                                <textarea
+                                    id="user-input"
+                                    class="form-control"
+                                    placeholder="Message the AI assistant..."
+                                    autocomplete="off"
+                                    rows="1"
+                                ></textarea>
+                                <button type="submit" class="btn btn-primary" id="send-btn">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </form>
+                        <div class="input-tools">
+                            <div class="tool-btn-group">
+                                <button id="mic-btn" class="tool-btn" title="Voice input">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <button id="upload-btn" class="tool-btn" title="Upload file">
+                                    <i class="fas fa-upload"></i>
+                                </button>
+                            </div>
+                            <div class="input-info">
+                                <span>Powered by Gemini 2.5</span>
+                            </div>
+                            <div class="tool-btn-group">
+                                <button id="clear-btn" class="tool-btn" title="Clear chat">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Highlight.js for code syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- KaTeX for LaTeX rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    <script>
+        // Define renderMathInElement if it's not available
+        window.renderMathInElement = window.renderMathInElement || function(element, options) {
+            console.log('Using fallback renderMathInElement function');
+            if (window.katex && window.katex.renderToString) {
+                const delimiters = options.delimiters || [];
+                const text = element.innerHTML;
+
+                // Process each delimiter
+                delimiters.forEach(delimiter => {
+                    const regex = new RegExp(`${delimiter.left}(.*?)${delimiter.right}`, 'g');
+                    element.innerHTML = text.replace(regex, (match, content) => {
+                        try {
+                            return katex.renderToString(content, {
+                                displayMode: delimiter.display,
+                                throwOnError: false
+                            });
+                        } catch (e) {
+                            console.error('KaTeX rendering error:', e);
+                            return match;
+                        }
+                    });
+                });
+            }
+        };
+    </script>
+
+    <!-- Streaming JavaScript for real-time responses -->
+    <script src="js/streaming.js"></script>
+
+    <!-- Enhanced JavaScript for the chatbot -->
+    <script src="js/enhanced.js"></script>
+
+    <!-- Agent JavaScript for code execution and streaming -->
+    <script src="js/agent.js"></script>
+</body>
+</html>

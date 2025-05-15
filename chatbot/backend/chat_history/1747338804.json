@@ -1,0 +1,18 @@
+{
+  "id": "1747338804",
+  "title": "hi",
+  "timestamp": 1747338818,
+  "messages": [
+    {
+      "role": "user",
+      "content": "hi",
+      "timestamp": 1747338818
+    },
+    {
+      "role": "assistant",
+      "content": "Hi there! How can I help you today?",
+      "formatted_content": "Hi there! How can I help you today?",
+      "timestamp": 1747338818
+    }
+  ]
+}

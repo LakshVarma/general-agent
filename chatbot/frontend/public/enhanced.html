@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Gemini Chatbot</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+
+    <!-- KaTeX for LaTeX rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+
+    <style>
+        :root {
+            --primary-color: #0b57d0;
+            --secondary-color: #f0f4f9;
+            --text-color: #202124;
+            --light-text: #5f6368;
+            --border-color: #dadce0;
+            --sidebar-bg: #f8f9fa;
+            --message-user-bg: #e9f5ff;
+            --message-assistant-bg: #f8f9fa;
+            --hover-color: #f1f3f4;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Google Sans', Arial, sans-serif;
+            color: var(--text-color);
+            background-color: #fff;
+        }
+
+        .container-fluid {
+            height: 100%;
+        }
+
+        .row {
+            height: 100%;
+        }
+
+        /* Sidebar styles */
+        .sidebar {
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 500;
+        }
+
+        .new-chat-btn {
+            padding: 1rem;
+        }
+
+        .chat-history {
+            flex-grow: 1;
+            padding: 0 1rem;
+            overflow-y: auto;
+        }
+
+        .chat-history h6 {
+            font-size: 0.875rem;
+            color: var(--light-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .chat-history-item {
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-history-item:hover {
+            background-color: var(--hover-color);
+        }
+
+        .chat-history-item.active {
+            background-color: var(--hover-color);
+            font-weight: 500;
+        }
+
+        .sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.75rem;
+            color: var(--light-text);
+            text-align: center;
+        }
+
+        /* Main content styles */
+        .main-content {
+            padding: 0;
+            height: 100%;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .chat-header h4 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 500;
+        }
+
+        /* Chat messages container */
+        .chat-messages {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* Message styles */
+        .message {
+            display: flex;
+            margin-bottom: 1rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .user-message {
+            justify-content: flex-end;
+        }
+
+        .assistant-message {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 2px var(--shadow-color);
+        }
+
+        .user-message .message-content {
+            background-color: var(--message-user-bg);
+            border-top-right-radius: 0.25rem;
+            color: var(--text-color);
+        }
+
+        .assistant-message .message-content {
+            background-color: var(--message-assistant-bg);
+            border-top-left-radius: 0.25rem;
+            color: var(--text-color);
+        }
+
+        .message-content p {
+            margin-bottom: 0.5rem;
+        }
+
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Code blocks */
+        .message-content pre {
+            background-color: #f6f8fa;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+
+        .message-content code {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.875rem;
+        }
+
+        .message-content p code {
+            background-color: #f6f8fa;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+        }
+
+        /* Chat input area */
+        .chat-input-container {
+            padding: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        #chat-form {
+            margin-bottom: 0.5rem;
+        }
+
+        .input-group {
+            border-radius: 1.5rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px var(--shadow-color);
+        }
+
+        #user-input {
+            border: none;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+        }
+
+        #user-input:focus {
+            box-shadow: none;
+        }
+
+        .input-group .btn {
+            border-radius: 0;
+            padding: 0.75rem 1.25rem;
+        }
+
+        /* Input tools */
+        .input-tools {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            padding: 0.25rem;
+        }
+
+        .tool-btn {
+            background: none;
+            border: none;
+            color: var(--light-text);
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            transition: background-color 0.2s;
+        }
+
+        .tool-btn:hover {
+            background-color: var(--hover-color);
+            color: var(--primary-color);
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background-color: var(--message-assistant-bg);
+            border-radius: 1rem;
+            width: fit-content;
+            margin-bottom: 1rem;
+        }
+
+        .typing-indicator span {
+            height: 0.5rem;
+            width: 0.5rem;
+            background-color: var(--light-text);
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 0.1rem;
+            opacity: 0.6;
+        }
+
+        .typing-indicator span:nth-child(1) {
+            animation: typing 1s infinite 0s;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation: typing 1s infinite 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation: typing 1s infinite 0.4s;
+        }
+
+        @keyframes typing {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-0.5rem); }
+            100% { transform: translateY(0); }
+        }
+
+        /* File upload styles */
+        .file-upload-container {
+            display: none;
+            padding: 1rem;
+            background-color: var(--secondary-color);
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .file-preview {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .file-preview img {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 0.25rem;
+        }
+
+        /* Voice input styles */
+        .voice-input-active {
+            background-color: #ff4b4b !important;
+            color: white !important;
+        }
+
+        .voice-input-container {
+            display: none;
+            padding: 1rem;
+            background-color: var(--secondary-color);
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .voice-wave {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 50px;
+        }
+
+        .voice-wave span {
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            margin: 0 2px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            animation: voice-wave 1.5s infinite ease-in-out;
+        }
+
+        .voice-wave span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .voice-wave span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        .voice-wave span:nth-child(4) {
+            animation-delay: 0.6s;
+        }
+
+        .voice-wave span:nth-child(5) {
+            animation-delay: 0.8s;
+        }
+
+        @keyframes voice-wave {
+            0%, 100% { height: 5px; }
+            50% { height: 20px; }
+        }
+
+        /* LaTeX styles */
+        .math-display, .katex-block {
+            display: block;
+            overflow-x: auto;
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            background-color: #f9f9f9;
+            border-radius: 0.25rem;
+            text-align: center;
+        }
+
+        .math-inline, .katex-inline {
+            padding: 0 0.2rem;
+            display: inline-block;
+        }
+
+        /* Ensure KaTeX renders properly */
+        .katex {
+            font-size: 1.1em;
+            line-height: 1.2;
+            white-space: normal;
+        }
+
+        .katex-display {
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 0.5rem 0;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 250px;
+                z-index: 1000;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                width: 100%;
+            }
+        }
+
+        /* Utility classes */
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover, .btn-primary:focus {
+            background-color: #0842a0;
+            border-color: #0842a0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar">
+                <div class="sidebar-header">
+                    <h3>Gemini Chatbot</h3>
+                </div>
+
+                <div class="new-chat-btn">
+                    <button id="new-chat-btn" class="btn btn-primary w-100">
+                        <i class="fas fa-plus"></i> New Chat
+                    </button>
+                </div>
+
+                <div class="chat-history">
+                    <h6>Chat History</h6>
+                    <ul id="chat-history-list" class="list-unstyled">
+                        <!-- Chat history will be populated here -->
+                    </ul>
+                </div>
+
+                <div class="sidebar-footer">
+                    <p>Powered by Gemini API</p>
+                </div>
+            </div>
+
+            <!-- Main Chat Area -->
+            <div class="col-md-9 col-lg-10 main-content">
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <h4>Chat with Gemini</h4>
+                    </div>
+
+                    <div id="chat-messages" class="chat-messages">
+                        <!-- Welcome message -->
+                        <div class="message assistant-message">
+                            <div class="message-content">
+                                <p>Hello! I'm your AI assistant powered by Gemini. How can I help you today?</p>
+                            </div>
+                        </div>
+                        <!-- Messages will be added here -->
+                    </div>
+
+                    <!-- File upload container -->
+                    <div id="file-upload-container" class="file-upload-container">
+                        <div class="mb-3">
+                            <label for="file-input" class="form-label">Upload a file</label>
+                            <input class="form-control" type="file" id="file-input">
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <button id="upload-cancel-btn" class="btn btn-outline-secondary">Cancel</button>
+                            <button id="upload-submit-btn" class="btn btn-primary">Upload</button>
+                        </div>
+                        <div id="file-preview" class="file-preview mt-2"></div>
+                    </div>
+
+                    <!-- Voice input container -->
+                    <div id="voice-input-container" class="voice-input-container">
+                        <p>Listening... Speak now</p>
+                        <div class="voice-wave">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <button id="voice-cancel-btn" class="btn btn-outline-secondary mt-3">Cancel</button>
+                    </div>
+
+                    <div class="chat-input-container">
+                        <form id="chat-form">
+                            <div class="input-group">
+                                <input
+                                    type="text"
+                                    id="user-input"
+                                    class="form-control"
+                                    placeholder="Ask anything..."
+                                    autocomplete="off"
+                                >
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </form>
+                        <div class="input-tools">
+                            <button id="mic-btn" class="tool-btn" title="Voice input">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <button id="upload-btn" class="tool-btn" title="Upload file">
+                                <i class="fas fa-upload"></i>
+                            </button>
+                            <button id="clear-btn" class="tool-btn" title="Clear chat">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Highlight.js for code syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- KaTeX for LaTeX rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+    <script src="js/enhanced.js"></script>
+</body>
+</html>
