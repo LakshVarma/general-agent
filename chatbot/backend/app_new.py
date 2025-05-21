@@ -16,6 +16,7 @@ from services.agent_service import AgentService
 from routes.chat import chat_bp, init_routes as init_chat_routes
 from routes.mcp import mcp_bp, init_routes as init_mcp_routes
 from routes.health import health_bp, init_routes as init_health_routes
+from routes.workflow import workflow_bp
 
 # Helper function to run async functions
 def run_async(coro):
@@ -68,6 +69,7 @@ init_health_routes(mcp_service)
 app.register_blueprint(chat_bp)
 app.register_blueprint(mcp_bp)
 app.register_blueprint(health_bp)
+app.register_blueprint(workflow_bp)
 
 # File upload directory
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
