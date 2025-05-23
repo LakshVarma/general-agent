@@ -1,0 +1,17 @@
+{
+  "name": "chatbot-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "chatbot/frontend_nextjs",
+    "chatbot/backend_nodejs"
+  ],
+  "scripts": {
+    "dev:frontend": "cd chatbot/frontend_nextjs && npm run dev",
+    "dev:backend": "cd chatbot/backend_nodejs && npm run dev",
+    "build:frontend": "cd chatbot/frontend_nextjs && npm run build",
+    "build:backend": "cd chatbot/backend_nodejs && npm run build"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}
