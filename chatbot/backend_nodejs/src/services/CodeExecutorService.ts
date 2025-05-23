@@ -13,18 +13,26 @@ export class CodeExecutorService implements ITool {
     if (task.type !== 'code_execution') {
       return {
         success: false,
-        error: `Invalid task type for CodeExecutor: ${task.type}. Expected 'code_execution'.`,
-        details: `Task ID: ${task.id}`
+        error: `Invalid task type for CodeExecutor: '${task.type}'. Expected 'code_execution'.`,
+        details: { 
+          taskId: task.id,
+          receivedType: task.type,
+          expectedType: 'code_execution'
+        }
       };
     }
 
-    // Type guard to ensure params is correctly shaped, though TypeScript should enforce this at compile time
-    // if AgentService routes correctly. This is more for runtime robustness if used directly.
     if (!task.params || typeof task.params.code !== 'string') {
         return {
             success: false,
             error: "Invalid or missing 'code' parameter in task params.",
-            details: `Task ID: ${task.id}`
+            details: { 
+              taskId: task.id,
+              reason: "Parameter 'code' must be a non-empty string.",
+              // It's good practice not to return the whole task.params if it could be large or sensitive.
+              // Instead, indicate which parameter was problematic if possible.
+              problematicParam: 'code' 
+            }
         };
     }
 
@@ -35,18 +43,23 @@ export class CodeExecutorService implements ITool {
       return {
         success: false,
         error: "Input code cannot be empty.",
-        details: `Task ID: ${task.id}`
+        details: { 
+          taskId: task.id,
+          reason: "Input code was empty or consisted only of whitespace."
+        }
       };
     }
 
     // Simulate a successful execution with mock output
-    // In a real scenario, this would involve a Python bridge or a child process.
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
           success: true,
           output: "Mock output from Python execution.",
-          details: `Task ID: ${task.id}, Executed code snippet: ${pythonCode.substring(0, 50)}...`
+          details: { // Details for success can also be an object
+            taskId: task.id, 
+            executedCodeSnippet: pythonCode.substring(0, 50) + (pythonCode.length > 50 ? "..." : "")
+          }
         });
       }, 500); // Simulate some delay
     });
