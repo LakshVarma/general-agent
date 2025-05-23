@@ -26,3 +26,22 @@ export interface ICodeExecutionTask extends ITask {
     context?: string; // Optional execution context or environment details
   };
 }
+
+export interface IWebFetchTask extends ITask {
+  type: 'web_fetch';
+  params: {
+    url: string;
+    method?: 'GET' | 'POST'; // Optional, default to GET
+    headers?: Record<string, string>;
+    body?: any;
+  };
+}
+
+export interface IZapierMCPTask extends ITask {
+  type: 'zapier_mcp_action';
+  params: {
+    action: string; // Specific Zapier action to perform
+    zapier_mcp_url: string; // URL for the Zapier MCP endpoint
+    action_params: Record<string, any>; // Parameters for the Zapier action
+  };
+}
