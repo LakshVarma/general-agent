@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import { TempoInit } from "./tempo-init";
-import "../src/app/globals.css";
+import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 

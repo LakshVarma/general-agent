@@ -6,8 +6,12 @@ export function TempoInit() {
   useEffect(() => {
     const init = async () => {
       if (process.env.NEXT_PUBLIC_TEMPO) {
-        const { TempoDevtools } = await import("tempo-devtools");
-        TempoDevtools.init();
+        try {
+          const { TempoDevtools } = await import("tempo-devtools");
+          TempoDevtools.init();
+        } catch (error) {
+          console.warn("Tempo devtools failed to load:", error);
+        }
       }
     };
 
