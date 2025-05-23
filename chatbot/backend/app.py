@@ -10,9 +10,10 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from gemini_service import GeminiService
 from nvidia_service import NvidiaService
-from agent_service import AgentService
+from code_executor import AgentService
 from mcp_server import MCPServer, run_async
 from utils.response_formatter import prepare_response
+from chatbot.backend.routes.agent import agent_bp # Added for agent routes
 import config
 
 # Create uploads directory if it doesn't exist
@@ -29,6 +30,9 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
 CORS(app, resources={r"/*": {"origins": config.CORS_ORIGINS}})
+
+# Register blueprints
+app.register_blueprint(agent_bp)
 
 # Initialize the AI services
 gemini_service = GeminiService()
