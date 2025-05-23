@@ -1,195 +1,182 @@
 import { AgentService } from '../AgentService';
 import { CodeExecutorService } from '../CodeExecutorService';
-import { ITask, IExecutionResult, ICodeExecutionTask } from '../../interfaces';
+import { WebFetcherTool } from '../WebFetcherTool';
+import { ZapierMCPTool } from '../ZapierMCPTool'; // Import ZapierMCPTool
+import { ITask, IExecutionResult, ICodeExecutionTask, IWebFetchTask, IZapierMCPTask } from '../../interfaces';
 import { v4 as uuidv4 } from 'uuid';
 
-// Mock CodeExecutorService
+// Mock all services
 jest.mock('../CodeExecutorService');
+jest.mock('../WebFetcherTool');
+jest.mock('../ZapierMCPTool'); // Mock ZapierMCPTool
 
 describe('AgentService', () => {
   let agentService: AgentService;
   let mockCodeExecutorServiceInstance: jest.Mocked<CodeExecutorService>;
+  let mockWebFetcherToolInstance: jest.Mocked<WebFetcherTool>;
+  let mockZapierMCPToolInstance: jest.Mocked<ZapierMCPTool>;
 
   beforeEach(() => {
-    // Reset mocks for each test
     jest.clearAllMocks();
-
-    // Create a new instance of AgentService for each test.
-    // This will use the mocked CodeExecutorService due to jest.mock() above.
     agentService = new AgentService();
     
-    // Access the mocked instance of CodeExecutorService created by AgentService's constructor
-    // This assumes AgentService internally creates an instance of CodeExecutorService
-    // and that CodeExecutorService is the first (or only) tool.
-    // If AgentService takes tools as constructor params, this would be different.
-    // Based on current AgentService, it instantiates tools internally.
-    // We need to get the instance that AgentService is using.
-    // The `mock.instances` array gives access to all instances of a mocked class.
+    // Access mocked instances created by AgentService constructor
+    // Order of instantiation in AgentService constructor: CodeExecutor, WebFetcher, ZapierMCP
     if (CodeExecutorService.mock.instances.length > 0) {
-        mockCodeExecutorServiceInstance = CodeExecutorService.mock.instances[0] as jest.Mocked<CodeExecutorService>;
+      mockCodeExecutorServiceInstance = CodeExecutorService.mock.instances[0] as jest.Mocked<CodeExecutorService>;
     } else {
-        // This case should ideally not happen if AgentService constructor works as expected
-        // and jest.mock is set up correctly.
-        // For safety, we can create a new mock instance if needed, though it might not be the one
-        // AgentService is using if AgentService creates its own.
-        // However, AgentService's constructor *does* create a new CodeExecutorService(),
-        // so an instance *should* be available via mock.instances.
-        // Let's re-ensure our mock setup is robust.
-        // The issue might be that AgentService is instantiated *before* we can grab the specific mock instance.
-        // A common pattern is to have tools injected, making mocking easier.
-        // Given the current structure of AgentService (new CodeExecutorService() in constructor):
-        // The mock should apply to any `new CodeExecutorService()` call.
-        // Let's ensure the mock is correctly providing mocked methods.
-        // If CodeExecutorService.mock.instances[0] is undefined, it means AgentService constructor
-        // didn't create an instance via the mock, which is problematic.
-        // This might happen if the `jest.mock` call is not correctly hoisting or applying.
+      mockCodeExecutorServiceInstance = new CodeExecutorService() as jest.Mocked<CodeExecutorService>;
+      if (!mockCodeExecutorServiceInstance.execute) mockCodeExecutorServiceInstance.execute = jest.fn();
+    }
 
-        // Let's assume CodeExecutorService constructor is called and its instance is the first one.
-        // This is a bit fragile. A better way would be to inject tools into AgentService.
-        // For now, we rely on this structure.
-        mockCodeExecutorServiceInstance = new CodeExecutorService() as jest.Mocked<CodeExecutorService>;
-         // Ensure its methods are mocks if we have to create it manually (though ideally not needed)
-        if (!mockCodeExecutorServiceInstance.execute) {
-            mockCodeExecutorServiceInstance.execute = jest.fn();
-        }
+    if (WebFetcherTool.mock.instances.length > 0) {
+      mockWebFetcherToolInstance = WebFetcherTool.mock.instances[0] as jest.Mocked<WebFetcherTool>;
+    } else {
+      mockWebFetcherToolInstance = new WebFetcherTool() as jest.Mocked<WebFetcherTool>;
+      if (!mockWebFetcherToolInstance.execute) mockWebFetcherToolInstance.execute = jest.fn();
+    }
+
+    if (ZapierMCPTool.mock.instances.length > 0) {
+      mockZapierMCPToolInstance = ZapierMCPTool.mock.instances[0] as jest.Mocked<ZapierMCPTool>;
+    } else {
+      mockZapierMCPToolInstance = new ZapierMCPTool() as jest.Mocked<ZapierMCPTool>;
+      if (!mockZapierMCPToolInstance.execute) mockZapierMCPToolInstance.execute = jest.fn();
     }
   });
 
-  it('should correctly delegate a code_execution task to CodeExecutorService', async () => {
-    const taskId = uuidv4();
-    const task: ICodeExecutionTask = {
-      id: taskId,
-      type: 'code_execution',
-      params: { code: 'print("hello from agent test")' }
-    };
+  describe('CodeExecutorService Integration', () => {
+    // Tests for CodeExecutorService remain the same...
+    it('should correctly delegate a code_execution task to CodeExecutorService', async () => {
+      const taskId = uuidv4();
+      const task: ICodeExecutionTask = {
+        id: taskId, type: 'code_execution', params: { code: 'print("hello")' }
+      };
+      const mockResult: IExecutionResult = { success: true, output: 'Mocked code output', details: { taskId } };
+      mockCodeExecutorServiceInstance.execute.mockResolvedValue(mockResult);
 
-    const mockExecutionResult: IExecutionResult = {
-      success: true,
-      output: 'Mocked execution output',
-      details: `Task ID: ${taskId}`
-    };
+      const result = await agentService.executeTask(task);
+      expect(mockCodeExecutorServiceInstance.execute).toHaveBeenCalledWith(task);
+      expect(result).toEqual(mockResult);
+    });
 
-    // Ensure the instance used by AgentService is the one we're setting the mock on.
-    // Accessing CodeExecutorService.mock.instances[0] if available is key.
-    const actualMockInstance = CodeExecutorService.mock.instances[0] as jest.Mocked<CodeExecutorService>;
-    actualMockInstance.execute.mockResolvedValue(mockExecutionResult);
-
-
-    const result = await agentService.executeTask(task);
-
-    expect(actualMockInstance.execute).toHaveBeenCalledTimes(1);
-    expect(actualMockInstance.execute).toHaveBeenCalledWith(task);
-    expect(result).toEqual(mockExecutionResult);
+    it('should return error for code_execution with invalid params (missing code)', async () => {
+      const taskId = uuidv4();
+      const task = { id: taskId, type: 'code_execution', params: {} } as ITask;
+      const result = await agentService.executeTask(task);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Task parameters are not valid for CodeExecutor");
+      expect(mockCodeExecutorServiceInstance.execute).not.toHaveBeenCalled();
+    });
   });
 
-  it('should return an error if no tool can handle the task type', async () => {
-    const taskId = uuidv4();
-    const task: ITask = {
-      id: taskId,
-      type: 'unknown_task_type',
-      params: { data: 'some data' }
-    };
+  describe('WebFetcherTool Integration', () => {
+    // Tests for WebFetcherTool remain the same...
+    it('should correctly delegate a web_fetch task to WebFetcherTool', async () => {
+      const taskId = uuidv4();
+      const task: IWebFetchTask = {
+        id: taskId, type: 'web_fetch', params: { url: 'https://example.com' }
+      };
+      const mockResult: IExecutionResult = { success: true, output: 'Mocked web content', details: { taskId, url: 'https://example.com' } };
+      mockWebFetcherToolInstance.execute.mockResolvedValue(mockResult);
 
-    const result = await agentService.executeTask(task);
+      const result = await agentService.executeTask(task);
+      expect(mockWebFetcherToolInstance.execute).toHaveBeenCalledWith(task);
+      expect(result).toEqual(mockResult);
+    });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toBe(`No tool available to handle task type: ${task.type}`);
-    expect(result.details).toContain(`Task ID: ${taskId}`);
+    it('should return error for web_fetch with invalid params (missing url)', async () => {
+      const taskId = uuidv4();
+      const task = { id: taskId, type: 'web_fetch', params: {} } as ITask; // Missing url
+      const result = await agentService.executeTask(task);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Task parameters are not valid for WebFetcher");
+      expect(mockWebFetcherToolInstance.execute).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('ZapierMCPTool Integration', () => {
+    it('should correctly delegate a zapier_mcp_action task to ZapierMCPTool', async () => {
+      const taskId = uuidv4();
+      const task: IZapierMCPTask = {
+        id: taskId,
+        type: 'zapier_mcp_action',
+        params: { action: 'test_action', zapier_mcp_url: 'https://zapier.com/mcp', action_params: { key: 'value' } }
+      };
+      const mockResult: IExecutionResult = { success: true, output: 'Mocked Zapier output', details: { taskId } };
+      mockZapierMCPToolInstance.execute.mockResolvedValue(mockResult);
+
+      const result = await agentService.executeTask(task);
+      expect(mockZapierMCPToolInstance.execute).toHaveBeenCalledWith(task);
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should return error for zapier_mcp_action with invalid params (missing action)', async () => {
+      const taskId = uuidv4();
+      const task = { 
+        id: taskId, 
+        type: 'zapier_mcp_action', 
+        params: { zapier_mcp_url: 'https://zapier.com/mcp', action_params: { key: 'value' } } 
+      } as ITask; // Missing 'action'
+      const result = await agentService.executeTask(task);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Task parameters are not valid for ZapierMCPTool");
+      expect(mockZapierMCPToolInstance.execute).not.toHaveBeenCalled();
+    });
+
+    it('should return error for zapier_mcp_action with invalid params (missing zapier_mcp_url)', async () => {
+      const taskId = uuidv4();
+      const task = { 
+        id: taskId, 
+        type: 'zapier_mcp_action', 
+        params: { action: 'test_action', action_params: { key: 'value' } } 
+      } as ITask; // Missing 'zapier_mcp_url'
+      const result = await agentService.executeTask(task);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Task parameters are not valid for ZapierMCPTool");
+      expect(mockZapierMCPToolInstance.execute).not.toHaveBeenCalled();
+    });
     
-    // Ensure no tool's execute method was called
-    const actualMockInstance = CodeExecutorService.mock.instances[0] as jest.Mocked<CodeExecutorService>;
-    expect(actualMockInstance.execute).not.toHaveBeenCalled();
+    it('should return error for zapier_mcp_action with invalid params (missing action_params)', async () => {
+      const taskId = uuidv4();
+      const task = { 
+        id: taskId, 
+        type: 'zapier_mcp_action', 
+        params: { action: 'test_action', zapier_mcp_url: 'https://zapier.com/mcp' } 
+      } as ITask; // Missing 'action_params'
+      const result = await agentService.executeTask(task);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Task parameters are not valid for ZapierMCPTool");
+      expect(mockZapierMCPToolInstance.execute).not.toHaveBeenCalled();
+    });
   });
 
-  it('should return an error if code_execution task params are invalid for CodeExecutor', async () => {
-    const taskId = uuidv4();
-    const task = { // Intentionally malformed for this test
-      id: taskId,
-      type: 'code_execution',
-      params: { script: 'this is not a code param' } // Missing 'code'
-    } as ITask; // Cast as ITask, AgentService should internally verify for ICodeExecutionTask
-
-    // The mock for CodeExecutorService's execute shouldn't even be called if params are wrong.
-    // The AgentService itself should catch this before delegation.
-    const result = await agentService.executeTask(task);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toBe("Task parameters are not valid for CodeExecutor.");
-    expect(result.details).toContain(`Task ID: ${taskId}`);
-
-    const actualMockInstance = CodeExecutorService.mock.instances[0] as jest.Mocked<CodeExecutorService>;
-    expect(actualMockInstance.execute).not.toHaveBeenCalled();
-  });
-  
-  it('should propagate errors from the tool execution', async () => {
-    const taskId = uuidv4();
-    const task: ICodeExecutionTask = {
-      id: taskId,
-      type: 'code_execution',
-      params: { code: 'print("error test")' }
-    };
-
-    const mockErrorResult: IExecutionResult = {
-      success: false,
-      error: 'Tool execution failed',
-      details: `Task ID: ${taskId}, Tool: CodeExecutor`
-    };
+  describe('General AgentService Logic', () => {
+    it('should return an error if no tool can handle the task type', async () => {
+      const taskId = uuidv4();
+      const task: ITask = { id: taskId, type: 'unknown_task_type', params: {} };
+      const result = await agentService.executeTask(task);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(`No tool available to handle task type: ${task.type}`);
+      expect(result.details).toEqual({ taskId });
+      expect(mockCodeExecutorServiceInstance.execute).not.toHaveBeenCalled();
+      expect(mockWebFetcherToolInstance.execute).not.toHaveBeenCalled();
+      expect(mockZapierMCPToolInstance.execute).not.toHaveBeenCalled();
+    });
     
-    // Mock CodeExecutorService's execute method to return an error
-    const actualMockInstance = CodeExecutorService.mock.instances[0] as jest.Mocked<CodeExecutorService>;
-    actualMockInstance.execute.mockResolvedValue(mockErrorResult); // Simulating a "successful" call that returns a failure IResult
-    // Or actualMockInstance.execute.mockRejectedValue(new Error("Tool exploded")); for exception
+    it('should handle exceptions from ZapierMCPTool', async () => {
+        const taskId = uuidv4();
+        const task: IZapierMCPTask = { 
+            id: taskId, 
+            type: 'zapier_mcp_action', 
+            params: { action: 'test_action', zapier_mcp_url: 'https://zapier.com/mcp', action_params: { key: 'value' } }
+        };
+        const exception = new Error("ZapierMCPTool exploded");
+        mockZapierMCPToolInstance.execute.mockRejectedValue(exception);
 
-    const result = await agentService.executeTask(task);
-
-    expect(actualMockInstance.execute).toHaveBeenCalledTimes(1);
-    expect(actualMockInstance.execute).toHaveBeenCalledWith(task);
-    expect(result).toEqual(mockErrorResult);
+        const result = await agentService.executeTask(task);
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(exception.message);
+        expect(result.details).toEqual({ taskId, tool: 'ZapierMCPTool' });
+    });
   });
-
-   it('should handle exceptions from the tool execution', async () => {
-    const taskId = uuidv4();
-    const task: ICodeExecutionTask = {
-      id: taskId,
-      type: 'code_execution',
-      params: { code: 'print("exception test")' }
-    };
-
-    const toolError = new Error("Tool exploded unexpectedly");
-    
-    const actualMockInstance = CodeExecutorService.mock.instances[0] as jest.Moc<ctrl61>import { Router, Request, Response } from 'express';
-import { AgentService } from '../services/AgentService';
-
-const router = Router();
-const agentService = new AgentService();
-
-interface TaskRequestBody {
-  type: string;
-  params: any;
-}
-
-router.post('/execute', async (req: Request, res: Response) => {
-  const task = req.body as TaskRequestBody;
-
-  if (!task || typeof task.type !== 'string' || task.params === undefined) {
-    return res.status(400).json({ success: false, error: 'Malformed task object in request body.' });
-  }
-
-  try {
-    console.log(`Agent route /execute received task:`, task);
-    const result = await agentService.executeTask(task);
-    if (result.success) {
-      return res.status(200).json(result);
-    } else {
-      // Consider different status codes for different types of errors from the service
-      return res.status(400).json(result); 
-    }
-  } catch (error) {
-    console.error('Error in /agent/execute route:', error);
-    // Check if error is an instance of Error to safely access message property
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-    return res.status(500).json({ success: false, error: errorMessage });
-  }
 });
-
-export default router;

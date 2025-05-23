@@ -1,5 +1,7 @@
-import { ITool, ITask, IExecutionResult, ICodeExecutionTask } from '../interfaces';
+import { ITool, ITask, IExecutionResult, ICodeExecutionTask, IWebFetchTask, IZapierMCPTask } from '../interfaces';
 import { CodeExecutorService } from './CodeExecutorService';
+import { WebFetcherTool } from './WebFetcherTool';
+import { ZapierMCPTool } from './ZapierMCPTool'; // Import ZapierMCPTool
 
 export class AgentService {
   private tools: ITool[];
@@ -7,8 +9,9 @@ export class AgentService {
   constructor() {
     // Initialize available tools
     this.tools = [
-      new CodeExecutorService()
-      // Future tools can be added here, e.g., new WebFetcherService()
+      new CodeExecutorService(),
+      new WebFetcherTool(),
+      new ZapierMCPTool() // Add ZapierMCPTool instance
     ];
   }
 
@@ -22,15 +25,14 @@ export class AgentService {
 
     let selectedTool: ITool | undefined;
 
-    // Simple tool selection logic
-    // This can be expanded with a more sophisticated mapping or strategy
+    // Updated tool selection logic
     if (task.type === 'code_execution') {
       selectedTool = this.tools.find(tool => tool.name === 'CodeExecutor');
+    } else if (task.type === 'web_fetch') {
+      selectedTool = this.tools.find(tool => tool.name === 'WebFetcher');
+    } else if (task.type === 'zapier_mcp_action') {
+      selectedTool = this.tools.find(tool => tool.name === 'ZapierMCPTool');
     }
-    // Example for a future tool:
-    // else if (task.type === 'web_fetch') {
-    //   selectedTool = this.tools.find(tool => tool.name === 'WebFetcher');
-    // }
 
     if (!selectedTool) {
       const errorMessage = `No tool available to handle task type: ${task.type}`;
@@ -38,7 +40,7 @@ export class AgentService {
       return {
         success: false,
         error: errorMessage,
-        details: `Task ID: ${task.id}`
+        details: { taskId: task.id }
       };
     }
 
@@ -46,24 +48,41 @@ export class AgentService {
 
     try {
       // Type assertion/validation before execution
-      // This is crucial if tools expect more specific task types
       if (selectedTool.name === 'CodeExecutor' && task.type === 'code_execution') {
-        // Validate if the task conforms to ICodeExecutionTask for CodeExecutorService
-        // This is a runtime check; TypeScript helps at compile time but data from external sources (like API) needs validation.
         const codeTask = task as ICodeExecutionTask;
         if (codeTask.params && typeof codeTask.params.code === 'string') {
           return await selectedTool.execute(codeTask);
         } else {
-          const errorMsg = "Task parameters are not valid for CodeExecutor.";
-          console.error(`AgentService (Task ID: ${task.id}): ${errorMsg} - Missing 'code' in params.`);
-          return { success: false, error: errorMsg, details: `Task ID: ${task.id}` };
+          const errorMsg = "Task parameters are not valid for CodeExecutor: Missing or invalid 'code' in params.";
+          console.error(`AgentService (Task ID: ${task.id}): ${errorMsg}`);
+          return { success: false, error: errorMsg, details: { taskId: task.id } };
+        }
+      } else if (selectedTool.name === 'WebFetcher' && task.type === 'web_fetch') {
+        const webFetchTask = task as IWebFetchTask;
+        if (webFetchTask.params && typeof webFetchTask.params.url === 'string') {
+          return await selectedTool.execute(webFetchTask);
+        } else {
+          const errorMsg = "Task parameters are not valid for WebFetcher: Missing or invalid 'url' in params.";
+          console.error(`AgentService (Task ID: ${task.id}): ${errorMsg}`);
+          return { success: false, error: errorMsg, details: { taskId: task.id } };
+        }
+      } else if (selectedTool.name === 'ZapierMCPTool' && task.type === 'zapier_mcp_action') {
+        const zapierTask = task as IZapierMCPTask;
+        if (
+          zapierTask.params &&
+          typeof zapierTask.params.action === 'string' && zapierTask.params.action.trim() !== "" &&
+          typeof zapierTask.params.zapier_mcp_url === 'string' && zapierTask.params.zapier_mcp_url.trim() !== "" &&
+          typeof zapierTask.params.action_params === 'object' && zapierTask.params.action_params !== null
+        ) {
+          return await selectedTool.execute(zapierTask);
+        } else {
+          const errorMsg = "Task parameters are not valid for ZapierMCPTool: Missing or invalid 'action', 'zapier_mcp_url', or 'action_params'.";
+          console.error(`AgentService (Task ID: ${task.id}): ${errorMsg}`);
+          return { success: false, error: errorMsg, details: { taskId: task.id } };
         }
       }
-      // Add similar blocks for other tools and their specific task types
-
-      // Fallback if specific checks aren't met or for generic tools
-      // This part might need refinement based on how tools are designed
-      // For now, we assume the task type matches the tool's general capability
+      
+      console.warn(`AgentService (Task ID: ${task.id}): Executing task with tool '${selectedTool.name}' without specific parameter validation for this combination. This might indicate a gap in task routing.`);
       return await selectedTool.execute(task);
 
     } catch (error) {
@@ -72,7 +91,7 @@ export class AgentService {
       return {
         success: false,
         error: errorMessage,
-        details: `Task ID: ${task.id}, Tool: ${selectedTool.name}`
+        details: { taskId: task.id, tool: selectedTool.name }
       };
     }
   }
