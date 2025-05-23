@@ -1,5 +1,5 @@
 import { CodeExecutorService } from '../CodeExecutorService';
-import { ICodeExecutionTask, IExecutionResult, ITask } from '../../interfaces'; // ITask for invalid type test
+import { ICodeExecutionTask, IExecutionResult } from '../../interfaces'; 
 import { v4 as uuidv4 } from 'uuid';
 
 describe('CodeExecutorService', () => {
@@ -23,9 +23,10 @@ describe('CodeExecutorService', () => {
     const result: IExecutionResult = await service.execute(task);
     expect(result.success).toBe(true);
     expect(result.output).toBe('Mock output from Python execution.');
-    expect(result.details).toContain(`Task ID: ${task.id}`);
-    expect(result.details).toContain(`Executed code snippet: ${task.params.code.substring(0, 50)}`);
     expect(result.error).toBeUndefined();
+    expect(result.details).toBeDefined();
+    expect(result.details).toHaveProperty('taskId', task.id);
+    expect(result.details).toHaveProperty('executedCodeSnippet', task.params.code.substring(0, 50));
   });
 
   it('should return an error for an empty code string', async () => {
@@ -37,35 +38,43 @@ describe('CodeExecutorService', () => {
     const result: IExecutionResult = await service.execute(task);
     expect(result.success).toBe(false);
     expect(result.error).toBe('Input code cannot be empty.');
-    expect(result.details).toContain(`Task ID: ${task.id}`);
     expect(result.output).toBeUndefined();
+    expect(result.details).toBeDefined();
+    expect(result.details).toHaveProperty('taskId', task.id);
+    expect(result.details).toHaveProperty('reason', 'Input code was empty or consisted only of whitespace.');
   });
   
   it('should return an error if params.code is not a string', async () => {
-    const task: ICodeExecutionTask = {
+    const task = { // Intentionally malformed
         id: uuidv4(),
         type: 'code_execution',
         // @ts-expect-error Testing invalid params type
         params: { code: 123 } 
-    };
+    } as ICodeExecutionTask; // Cast for testing purposes
     const result: IExecutionResult = await service.execute(task);
     expect(result.success).toBe(false);
     expect(result.error).toBe("Invalid or missing 'code' parameter in task params.");
-    expect(result.details).toContain(`Task ID: ${task.id}`);
     expect(result.output).toBeUndefined();
+    expect(result.details).toBeDefined();
+    expect(result.details).toHaveProperty('taskId', task.id);
+    expect(result.details).toHaveProperty('reason', "Parameter 'code' must be a non-empty string.");
+    expect(result.details).toHaveProperty('problematicParam', 'code');
   });
 
   it('should return an error for an invalid task type', async () => {
-    const invalidTask = { // Explicitly not ICodeExecutionTask to test type checking
+    const invalidTask = { 
       id: uuidv4(),
-      type: 'wrong_type',
+      type: 'wrong_type', // Invalid type
       params: { code: 'print("this should not run")' }
     } as unknown as ICodeExecutionTask; // Cast to bypass compile-time check for testing runtime check
 
     const result: IExecutionResult = await service.execute(invalidTask);
     expect(result.success).toBe(false);
-    expect(result.error).toBe(`Invalid task type for CodeExecutor: ${invalidTask.type}. Expected 'code_execution'.`);
-    expect(result.details).toContain(`Task ID: ${invalidTask.id}`);
+    expect(result.error).toBe(`Invalid task type for CodeExecutor: '${invalidTask.type}'. Expected 'code_execution'.`);
     expect(result.output).toBeUndefined();
+    expect(result.details).toBeDefined();
+    expect(result.details).toHaveProperty('taskId', invalidTask.id);
+    expect(result.details).toHaveProperty('receivedType', invalidTask.type);
+    expect(result.details).toHaveProperty('expectedType', 'code_execution');
   });
 });

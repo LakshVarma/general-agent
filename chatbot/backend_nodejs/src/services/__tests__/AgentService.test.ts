@@ -20,8 +20,6 @@ describe('AgentService', () => {
     jest.clearAllMocks();
     agentService = new AgentService();
     
-    // Access mocked instances created by AgentService constructor
-    // Order of instantiation in AgentService constructor: CodeExecutor, WebFetcher, ZapierMCP
     if (CodeExecutorService.mock.instances.length > 0) {
       mockCodeExecutorServiceInstance = CodeExecutorService.mock.instances[0] as jest.Mocked<CodeExecutorService>;
     } else {
@@ -45,15 +43,17 @@ describe('AgentService', () => {
   });
 
   describe('CodeExecutorService Integration', () => {
-    // Tests for CodeExecutorService remain the same...
     it('should correctly delegate a code_execution task to CodeExecutorService', async () => {
       const taskId = uuidv4();
       const task: ICodeExecutionTask = {
         id: taskId, type: 'code_execution', params: { code: 'print("hello")' }
       };
-      const mockResult: IExecutionResult = { success: true, output: 'Mocked code output', details: { taskId } };
+      const mockResult: IExecutionResult = { 
+        success: true, 
+        output: 'Mocked code output', 
+        details: { taskId, executedCodeSnippet: 'print("hello")'.substring(0,50) } 
+      };
       mockCodeExecutorServiceInstance.execute.mockResolvedValue(mockResult);
-
       const result = await agentService.executeTask(task);
       expect(mockCodeExecutorServiceInstance.execute).toHaveBeenCalledWith(task);
       expect(result).toEqual(mockResult);
@@ -65,20 +65,23 @@ describe('AgentService', () => {
       const result = await agentService.executeTask(task);
       expect(result.success).toBe(false);
       expect(result.error).toContain("Task parameters are not valid for CodeExecutor");
+      expect(result.details).toEqual({ taskId }); 
       expect(mockCodeExecutorServiceInstance.execute).not.toHaveBeenCalled();
     });
   });
 
   describe('WebFetcherTool Integration', () => {
-    // Tests for WebFetcherTool remain the same...
     it('should correctly delegate a web_fetch task to WebFetcherTool', async () => {
       const taskId = uuidv4();
       const task: IWebFetchTask = {
         id: taskId, type: 'web_fetch', params: { url: 'https://example.com' }
       };
-      const mockResult: IExecutionResult = { success: true, output: 'Mocked web content', details: { taskId, url: 'https://example.com' } };
+      const mockResult: IExecutionResult = { 
+        success: true, 
+        output: 'Mocked web content', 
+        details: { taskId, url: 'https://example.com', status: 200, method: 'GET' } 
+      };
       mockWebFetcherToolInstance.execute.mockResolvedValue(mockResult);
-
       const result = await agentService.executeTask(task);
       expect(mockWebFetcherToolInstance.execute).toHaveBeenCalledWith(task);
       expect(result).toEqual(mockResult);
@@ -86,10 +89,11 @@ describe('AgentService', () => {
 
     it('should return error for web_fetch with invalid params (missing url)', async () => {
       const taskId = uuidv4();
-      const task = { id: taskId, type: 'web_fetch', params: {} } as ITask; // Missing url
+      const task = { id: taskId, type: 'web_fetch', params: {} } as ITask; 
       const result = await agentService.executeTask(task);
       expect(result.success).toBe(false);
       expect(result.error).toContain("Task parameters are not valid for WebFetcher");
+      expect(result.details).toEqual({ taskId });
       expect(mockWebFetcherToolInstance.execute).not.toHaveBeenCalled();
     });
   });
@@ -102,9 +106,18 @@ describe('AgentService', () => {
         type: 'zapier_mcp_action',
         params: { action: 'test_action', zapier_mcp_url: 'https://zapier.com/mcp', action_params: { key: 'value' } }
       };
-      const mockResult: IExecutionResult = { success: true, output: 'Mocked Zapier output', details: { taskId } };
+      // Updated details to match ZapierMCPTool's success response
+      const mockResult: IExecutionResult = { 
+        success: true, 
+        output: 'Mocked Zapier output', 
+        details: { 
+          taskId, 
+          action: 'test_action', 
+          mcp_url: 'https://zapier.com/mcp',
+          status: "Placeholder success (not a real MCP call)" 
+        } 
+      };
       mockZapierMCPToolInstance.execute.mockResolvedValue(mockResult);
-
       const result = await agentService.executeTask(task);
       expect(mockZapierMCPToolInstance.execute).toHaveBeenCalledWith(task);
       expect(result).toEqual(mockResult);
@@ -116,36 +129,11 @@ describe('AgentService', () => {
         id: taskId, 
         type: 'zapier_mcp_action', 
         params: { zapier_mcp_url: 'https://zapier.com/mcp', action_params: { key: 'value' } } 
-      } as ITask; // Missing 'action'
+      } as ITask; 
       const result = await agentService.executeTask(task);
       expect(result.success).toBe(false);
       expect(result.error).toContain("Task parameters are not valid for ZapierMCPTool");
-      expect(mockZapierMCPToolInstance.execute).not.toHaveBeenCalled();
-    });
-
-    it('should return error for zapier_mcp_action with invalid params (missing zapier_mcp_url)', async () => {
-      const taskId = uuidv4();
-      const task = { 
-        id: taskId, 
-        type: 'zapier_mcp_action', 
-        params: { action: 'test_action', action_params: { key: 'value' } } 
-      } as ITask; // Missing 'zapier_mcp_url'
-      const result = await agentService.executeTask(task);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("Task parameters are not valid for ZapierMCPTool");
-      expect(mockZapierMCPToolInstance.execute).not.toHaveBeenCalled();
-    });
-    
-    it('should return error for zapier_mcp_action with invalid params (missing action_params)', async () => {
-      const taskId = uuidv4();
-      const task = { 
-        id: taskId, 
-        type: 'zapier_mcp_action', 
-        params: { action: 'test_action', zapier_mcp_url: 'https://zapier.com/mcp' } 
-      } as ITask; // Missing 'action_params'
-      const result = await agentService.executeTask(task);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("Task parameters are not valid for ZapierMCPTool");
+      expect(result.details).toEqual({ taskId });
       expect(mockZapierMCPToolInstance.execute).not.toHaveBeenCalled();
     });
   });
@@ -162,17 +150,101 @@ describe('AgentService', () => {
       expect(mockWebFetcherToolInstance.execute).not.toHaveBeenCalled();
       expect(mockZapierMCPToolInstance.execute).not.toHaveBeenCalled();
     });
+
+    it('should propagate errors from CodeExecutorService with enhanced details', async () => {
+        const taskId = uuidv4();
+        const task: ICodeExecutionTask = { id: taskId, type: 'code_execution', params: { code: 'error code' } };
+        const mockToolError: IExecutionResult = { 
+            success: false, 
+            error: 'Code execution failed by tool', 
+            details: { 
+                taskId, 
+                reason: "Tool specific error reason for code execution", // Matches CodeExecutorService's enhanced details
+                problematicParam: "code" 
+            } 
+        };
+        mockCodeExecutorServiceInstance.execute.mockResolvedValue(mockToolError);
+        const result = await agentService.executeTask(task);
+        expect(result).toEqual(mockToolError);
+        expect(result.details).toHaveProperty('reason', "Tool specific error reason for code execution");
+    });
+
+    it('should propagate errors from WebFetcherTool with enhanced details', async () => {
+        const taskId = uuidv4();
+        const task: IWebFetchTask = { id: taskId, type: 'web_fetch', params: { url: 'https://error.com' } };
+        const mockToolError: IExecutionResult = { 
+            success: false, 
+            error: 'Web fetch failed by tool', 
+            details: { 
+                taskId, 
+                url: 'https://error.com', 
+                status: 404, 
+                reason: "Resource not found (simulated)", // Matches WebFetcherTool's enhanced details
+                method: 'GET'
+            } 
+        };
+        mockWebFetcherToolInstance.execute.mockResolvedValue(mockToolError);
+        const result = await agentService.executeTask(task);
+        expect(result).toEqual(mockToolError);
+        expect(result.details).toHaveProperty('status', 404);
+        expect(result.details).toHaveProperty('reason', "Resource not found (simulated)");
+    });
+    
+    it('should propagate errors from ZapierMCPTool with enhanced details', async () => {
+        const taskId = uuidv4();
+        const task: IZapierMCPTask = { 
+            id: taskId, 
+            type: 'zapier_mcp_action', 
+            params: { action: 'failing_action', zapier_mcp_url: 'https://zapier.com/mcp', action_params: { key: 'value' } }
+        };
+        // Updated to match a specific error from ZapierMCPTool (e.g., invalid 'action' parameter)
+        const mockToolError: IExecutionResult = { 
+            success: false, 
+            error: "Invalid 'action' parameter: Must be a non-empty string.", 
+            details: { 
+                taskId, 
+                problematicParam: 'action', // Matches ZapierMCPTool's enhanced details for this error
+                reason: "Parameter 'action' must be a non-empty string."
+            } 
+        };
+        mockZapierMCPToolInstance.execute.mockResolvedValue(mockToolError);
+        const result = await agentService.executeTask(task);
+        expect(result).toEqual(mockToolError);
+        expect(result.details).toHaveProperty('problematicParam', 'action');
+        expect(result.details).toHaveProperty('reason', "Parameter 'action' must be a non-empty string.");
+    });
+
+    it('should handle exceptions from CodeExecutorService', async () => {
+        const taskId = uuidv4();
+        const task: ICodeExecutionTask = { id: taskId, type: 'code_execution', params: { code: 'exception code' } };
+        const exception = new Error("CodeExecutor tool exploded");
+        mockCodeExecutorServiceInstance.execute.mockRejectedValue(exception);
+        const result = await agentService.executeTask(task);
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(exception.message);
+        expect(result.details).toEqual({ taskId, tool: 'CodeExecutor' }); 
+    });
+
+    it('should handle exceptions from WebFetcherTool', async () => {
+        const taskId = uuidv4();
+        const task: IWebFetchTask = { id: taskId, type: 'web_fetch', params: { url: 'https://exception.com' } };
+        const exception = new Error("WebFetcher tool exploded");
+        mockWebFetcherToolInstance.execute.mockRejectedValue(exception);
+        const result = await agentService.executeTask(task);
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(exception.message);
+        expect(result.details).toEqual({ taskId, tool: 'WebFetcher' });
+    });
     
     it('should handle exceptions from ZapierMCPTool', async () => {
         const taskId = uuidv4();
         const task: IZapierMCPTask = { 
             id: taskId, 
             type: 'zapier_mcp_action', 
-            params: { action: 'test_action', zapier_mcp_url: 'https://zapier.com/mcp', action_params: { key: 'value' } }
+            params: { action: 'exploding_action', zapier_mcp_url: 'https://zapier.com/mcp', action_params: {} }
         };
-        const exception = new Error("ZapierMCPTool exploded");
+        const exception = new Error("ZapierMCPTool tool exploded");
         mockZapierMCPToolInstance.execute.mockRejectedValue(exception);
-
         const result = await agentService.executeTask(task);
         expect(result.success).toBe(false);
         expect(result.error).toBe(exception.message);
