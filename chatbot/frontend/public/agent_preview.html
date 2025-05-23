@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Preview</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h2 { color: #333; }
+        textarea { width: 98%; min-height: 100px; margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 20px; }
+        button:hover { background-color: #0056b3; }
+        pre { background-color: #eee; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }
+        .output-section { margin-top: 20px; }
+        .plot-image { max-width: 100%; height: auto; border: 1px solid #ddd; margin-top: 10px; }
+        .file-link { display: block; margin-bottom: 5px; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Agent Preview</h2>
+
+        <!-- Code Execution Section -->
+        <div class="section">
+            <h3>Execute Python Code</h3>
+            <textarea id="codeInput" placeholder="Enter Python code here..."></textarea>
+            <button onclick="executeCode()">Execute Code</button>
+            <div class="output-section">
+                <h4>Execution Output:</h4>
+                <p><strong>Status:</strong> <span id="executeStatus"></span></p>
+                <p><strong>STDOUT:</strong></p>
+                <pre id="stdoutOutput"></pre>
+                <p><strong>STDERR:</strong></p>
+                <pre id="stderrOutput" class="error"></pre>
+                <p><strong>Files:</strong></p>
+                <div id="filesOutput"></div>
+                <p><strong>Plots:</strong></p>
+                <div id="plotsOutput"></div>
+            </div>
+        </div>
+
+        <hr style="margin: 30px 0;">
+
+        <!-- Code Generation Section -->
+        <div class="section">
+            <h3>Generate Code</h3>
+            <textarea id="promptInput" placeholder="Enter prompt for code generation..."></textarea>
+            <button onclick="generateCode()">Generate Code</button>
+            <div class="output-section">
+                <h4>Generated Code:</h4>
+                <p><strong>Language:</strong> <span id="generatedLanguage"></span></p>
+                <pre id="generatedCodeOutput"></pre>
+                 <p><strong>Error:</strong></p>
+                <pre id="generateErrorOutput" class="error"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function executeCode() {
+            const code = document.getElementById('codeInput').value;
+            document.getElementById('executeStatus').textContent = 'Processing...';
+            document.getElementById('stdoutOutput').textContent = '';
+            document.getElementById('stderrOutput').textContent = '';
+            document.getElementById('filesOutput').innerHTML = '';
+            document.getElementById('plotsOutput').innerHTML = '';
+
+            try {
+                const response = await fetch('/agent/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('executeStatus').textContent = result.success ? 'Success' : 'Failed';
+                    document.getElementById('stdoutOutput').textContent = result.stdout || '';
+                    document.getElementById('stderrOutput').textContent = result.stderr || '';
+                    
+                    if (result.files && result.files.length > 0) {
+                        const filesDiv = document.getElementById('filesOutput');
+                        result.files.forEach(file => {
+                            // Note: Direct links to backend file paths won't work securely or directly.
+                            // This just displays filenames. For actual download, backend needs to serve these files.
+                            const p = document.createElement('p');
+                            p.textContent = `Filename: ${file.filename}`;
+                            if(file.preview){
+                                const details = document.createElement('details');
+                                const summary = document.createElement('summary');
+                                summary.textContent = 'View Preview';
+                                details.appendChild(summary);
+                                const pre = document.createElement('pre');
+                                pre.innerHTML = file.preview; // Preview is HTML
+                                details.appendChild(pre);
+                                p.appendChild(details);
+                            }
+                            filesDiv.appendChild(p);
+                        });
+                    }
+
+                    if (result.plots && result.plots.length > 0) {
+                        const plotsDiv = document.getElementById('plotsOutput');
+                        result.plots.forEach(plot => {
+                            const img = document.createElement('img');
+                            img.src = 'data:image/png;base64,' + plot.data;
+                            img.alt = plot.filename;
+                            img.classList.add('plot-image');
+                            plotsDiv.appendChild(img);
+                        });
+                    }
+                     if (!result.success && result.error) {
+                        document.getElementById('stderrOutput').textContent += '\nServer Error: ' + result.error;
+                    }
+                } else {
+                    document.getElementById('executeStatus').textContent = 'Error';
+                    document.getElementById('stderrOutput').textContent = `Server Error: ${result.error || response.statusText}`;
+                }
+            } catch (error) {
+                document.getElementById('executeStatus').textContent = 'Error';
+                document.getElementById('stderrOutput').textContent = 'Fetch Error: ' + error.message;
+            }
+        }
+
+        async function generateCode() {
+            const prompt = document.getElementById('promptInput').value;
+            document.getElementById('generatedLanguage').textContent = '';
+            document.getElementById('generatedCodeOutput').textContent = 'Processing...';
+            document.getElementById('generateErrorOutput').textContent = '';
+
+
+            try {
+                const response = await fetch('/agent/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt, language: 'python' }) // Example: default to python
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('generatedLanguage').textContent = result.language || 'N/A';
+                    document.getElementById('generatedCodeOutput').textContent = result.code || '';
+                    if (result.error) { // Should not happen with 200 OK, but good practice
+                         document.getElementById('generateErrorOutput').textContent = 'Server reported an error: ' + result.error;
+                    }
+                } else {
+                     document.getElementById('generatedLanguage').textContent = 'Error';
+                    document.getElementById('generateErrorOutput').textContent = `Server Error: ${result.error || response.statusText}`;
+                }
+            } catch (error) {
+                document.getElementById('generatedLanguage').textContent = 'Error';
+                document.getElementById('generateErrorOutput').textContent = 'Fetch Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

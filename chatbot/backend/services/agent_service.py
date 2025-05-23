@@ -6,6 +6,8 @@ import os
 import json
 from typing import Dict, List, Any, Optional
 
+from chatbot.backend.code_executor import AgentService as CodeExecutor
+
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -15,26 +17,32 @@ class AgentService:
 
     def __init__(self):
         """Initialize the agent service."""
-        pass
+        self.code_executor = CodeExecutor()
+        logger.info("AgentService initialized with CodeExecutor.")
         
-    async def execute_task(self, task: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def execute_task(self, task: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Execute a task using an agent.
+        Execute a task using an agent, expecting the task to be Python code.
 
         Args:
-            task: The task to execute.
-            context: The context for the task.
+            task: The Python code to execute.
+            context: The context for the task (currently not used by code_executor).
 
         Returns:
-            A dictionary containing the result of the task.
+            A dictionary containing the result of the code execution.
         """
-        # This is a placeholder for future agent-based task execution
-        logger.info(f"Executing task: {task}")
+        logger.info(f"Executing task (Python code) via CodeExecutor: {task[:200]}...")
+        # Assuming task is Python code to be executed.
+        # file_paths is set to None as per instruction.
+        execution_result = self.code_executor.execute_code(code=task, file_paths=None)
+        # The execute_code method in the provided CodeExecutor class is not async,
+        # so we call it directly without await.
         
-        return {
-            "success": True,
-            "result": f"Task '{task}' executed successfully."
-        }
+        # Log the success status as per refined instructions
+        success_status = execution_result.get('success') if isinstance(execution_result, dict) else "Unknown (result not a dict)"
+        logger.info(f"Code execution finished. Success: {success_status}")
+        
+        return execution_result
         
     async def generate_code(self, prompt: str, language: str = "python") -> str:
         """
@@ -47,18 +55,10 @@ class AgentService:
         Returns:
             The generated code.
         """
-        # This is a placeholder for future code generation
         logger.info(f"Generating {language} code for prompt: {prompt}")
         
-        # Return a simple example
         if language == "python":
-            return """
-def hello_world():
-    print("Hello, world!")
-    
-if __name__ == "__main__":
-    hello_world()
-"""
+            return "def sample_generated_function():\n    print(\"This is sample generated Python code.\")\n\nsample_generated_function()"
         elif language == "javascript":
             return """
 function helloWorld() {
